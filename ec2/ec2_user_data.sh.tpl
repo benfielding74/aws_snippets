@@ -13,9 +13,9 @@ systemctl enable httpd
 systemctl start httpd
 
 # Docker login, pull and run
-sudo docker login -u AWS -p $(aws ecr get-login-password --region eu-west-2) 617111187959.dkr.ecr.eu-west-2.amazonaws.com
-sudo docker pull 617111187959.dkr.ecr.eu-west-2.amazonaws.com/app-portfolio:latest
-sudo docker run -d -p 8080:80 617111187959.dkr.ecr.eu-west-2.amazonaws.com/app-portfolio:latest
+sudo docker login -u AWS -p $(aws ecr get-login-password --region eu-west-2) ${VAR1}
+sudo docker pull ${VAR2}
+sudo docker run -d -p 8080:80 ${VAR2}
 
 # Configure httpd with a proxy pass and proxy reverse
 echo "ProxyPass / http://localhost:8080/" | sudo tee /etc/httpd/conf.d/proxy.conf

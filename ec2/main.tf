@@ -57,7 +57,7 @@ resource "aws_iam_policy" "ecr_policy" {
           "ecr:BatchGetImage",
           "ecr:BatchCheckLayerAvailability"
         ],
-        "Resource" : "arn:aws:ecr:eu-west-2:617111187959:repository/app-portfolio"
+        "Resource" : "arn:aws:ecr:eu-west-2:${var.account}:repository/app-portfolio"
       },
       {
         "Sid" : "webserver1",
@@ -90,7 +90,7 @@ resource "aws_security_group" "ec2_webserver" {
     protocol    = "tcp"
     from_port   = 22
     to_port     = 22
-    cidr_blocks = ["87.80.61.54/32"]
+    cidr_blocks = [var.ssh_cidr]
   }
 
   ingress {
@@ -124,33 +124,10 @@ resource "aws_instance" "web_server" {
   iam_instance_profile        = aws_iam_instance_profile.web_server_profile.name
   key_name                    = "webserver"
   vpc_security_group_ids      = [aws_security_group.ec2_webserver.id]
-  user_data                   = <<EOF
-#!/bin/bash
-
-# Install httpd and docker
-sudo yum update -y
-sudo yum install httpd docker -y
-
-# Start and enable docker service
-systemctl enable docker
-systemctl start docker
-
-# Start and enable HTTPD
-systemctl enable httpd
-systemctl start httpd
-
-# Docker login, pull and run
-sudo docker login -u AWS -p $(aws ecr get-login-password --region eu-west-2) 617111187959.dkr.ecr.eu-west-2.amazonaws.com
-sudo docker pull 617111187959.dkr.ecr.eu-west-2.amazonaws.com/app-portfolio:latest
-sudo docker run -d -p 8080:80 617111187959.dkr.ecr.eu-west-2.amazonaws.com/app-portfolio:latest
-
-# Configure httpd with a proxy pass and proxy reverse
-echo "ProxyPass / http://localhost:8080/" | sudo tee /etc/httpd/conf.d/proxy.conf
-echo "ProxyPassReverse / http://localhost:8080/" | sudo tee -a /etc/httpd/conf.d/proxy.conf
-
-# Restart httpd service
-systemctl restart httpd
-EOF
+  user_data                   = templatefile("${path.module}/ec2_user_data.sh.tpl", {
+    VAR1 = var.ecr_repository
+    VAR2 = var.ecr_image
+  })
 
   tags = {
     Project = "Webserver"
@@ -164,4 +141,32 @@ EOF
 
 output "instance_public_ip" {
   value = aws_instance.web_server.public_dns
+}
+
+output "user_data" {
+  value = aws_instance.web_server.user_data
+}
+
+#variables
+
+variable "ssh_cidr" {
+  type        = string
+  default     = "0.0.0.0/0"
+  description = "CIDR block for SSH access"
+}
+
+variable "ecr_image" {
+  type = string
+  description = "Docker image URL"
+}
+
+variable "ecr_repository" {
+  type = string
+  description = "ECR repository for docker log in" 
+}
+
+variable "account" {
+  type = string
+  description = "AWS account number"
+  sensitive = true
 }
