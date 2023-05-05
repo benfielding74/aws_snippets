@@ -1,0 +1,6 @@
+Dockerrun.aws.*
+/.terraform
+.terraform.*
+*.tfstate
+*.tfstate.*
+*.tfvars
